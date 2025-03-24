@@ -31,9 +31,9 @@ class PThenO(ABC):
     def get_output_activation(self):
         raise NotImplementedError()
 
-    @abstractmethod
-    def get_twostageloss(self):
-        raise NotImplementedError()
+    # @abstractmethod
+    # def get_twostageloss(self):
+    #     raise NotImplementedError()
 
     @abstractmethod
     def get_decision(self, Y, **kwargs):

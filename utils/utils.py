@@ -1,10 +1,12 @@
+import inspect
 import os
-from typing import Dict
 import pandas as pd
 import pickle
 import torch
-import inspect
+
 from itertools import repeat
+from typing import Dict
+
 
 def init_if_not_saved(
     problem_cls,
@@ -71,7 +73,6 @@ def print_metrics(
     prefix="",
     wandb_on=False,
 ):
-    # print(f"Current model parameters: {[param for param in model.parameters()]}")
     metrics = {}
     for Xs, Ys, Ys_aux, partition in datasets:
         # Choose whether we should use train or test 
@@ -88,7 +89,12 @@ def print_metrics(
             for i in range(len(Xs)):
                 # Surrogate Loss
                 pred = model(Xs[i]).squeeze()
-                losses.append(loss_fn(pred, Ys[i], aux_data=Ys_aux[i], partition=partition, index=i))
+                if problem.__class__.__name__ in ['PortfolioOpt', 'Newsvendor']:
+                    losses.append(loss_fn(pred, Ys[i], aux_data=Ys_aux[i], partition=partition, index=i))
+                elif problem.__class__.__name__ == 'BudgetAllocation':
+                    losses.append(loss_fn(pred.flatten(), Ys[i].flatten(), aux_data=Ys_aux[i], partition=partition, index=i))
+                elif problem.__class__.__name__ == "Newsvendor":
+                    losses.append(loss_fn(pred, Ys[i], partition=partition, index=i))
             losses = torch.stack(losses).flatten()
         else:
             losses = torch.zeros_like(objectives)
@@ -145,46 +151,4 @@ def move_to_gpu(problem):
     for key, value in inspect.getmembers(problem, lambda a:not(inspect.isroutine(a))):
         if isinstance(value, torch.Tensor):
             problem.__dict__[key] = value.to(device)
-            
-def dense_nn(
-    num_features,
-    num_targets,
-    num_layers,
-    intermediate_size=10,
-    activation='relu',
-    output_activation='sigmoid',
-):
-    if num_layers > 1:
-        if intermediate_size is None:
-            intermediate_size = max(num_features, num_targets)
-        if activation == 'relu':
-            activation_fn = torch.nn.ReLU
-        elif activation == 'sigmoid':
-            activation_fn = torch.nn.Sigmoid
-        else:
-            raise Exception('Invalid activation function: ' + str(activation))
-        net_layers = [torch.nn.Linear(num_features, intermediate_size), activation_fn()]
-        for _ in range(num_layers - 2):
-            net_layers.append(torch.nn.Linear(intermediate_size, intermediate_size))
-            net_layers.append(activation_fn())
-        if not isinstance(num_targets, tuple):
-            net_layers.append(torch.nn.Linear(intermediate_size, num_targets))
-        else:
-            net_layers.append(torch.nn.Linear(intermediate_size, reduce(operator.mul, num_targets, 1)))
-            net_layers.append(View(num_targets))
-    else:
-        if not isinstance(num_targets, tuple):
-            net_layers = [torch.nn.Linear(num_features, num_targets)]
-        else:
-            net_layers = [torch.nn.Linear(num_features, reduce(operator.mul, num_targets, 1)), View(num_targets)]
-
-    if output_activation == 'relu':
-        net_layers.append(torch.nn.ReLU())
-    elif output_activation == 'sigmoid':
-        net_layers.append(torch.nn.Sigmoid())
-    elif output_activation == 'tanh':
-        net_layers.append(torch.nn.Tanh())
-    elif output_activation == 'softmax':
-        net_layers.append(torch.nn.Softmax(dim=-1))
-
-    return torch.nn.Sequential(*net_layers)
+        

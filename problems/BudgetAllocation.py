@@ -1,8 +1,8 @@
-from PThenO import PThenO
+from problems.PThenO import PThenO
 import pickle
 import random
 import numpy as np
-from SubmodularOptimizer import SubmodularOptimizer
+from utils.SubmodularOptimizer import SubmodularOptimizer
 import torch
 
 
@@ -89,6 +89,7 @@ class BudgetAllocation(PThenO):
         Converts labels (Ys) + random noise, to features (Xs)
         """
         # Generate random matrix common to all Ysets (train + test)
+        # transform_nn = torch.nn.Sequential(torch.nn.Linear(self.num_features, self.num_targets))
         transform_nn = torch.nn.Sequential(torch.nn.Linear(self.num_features, self.num_features))
 
         # Generate training data by scrambling the Ys based on this matrix
@@ -133,6 +134,10 @@ class BudgetAllocation(PThenO):
         For a given set of predictions/labels (Y), returns the decision quality.
         The objective needs to be _maximised_.
         """
+        # if torch.cuda.is_available():
+        #     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        #     Z = Z.to(device)
+        #     Y = Y.to(device)
         # Sanity check inputs
         assert Y.shape[-2] == Z.shape[-1]
         assert len(Z.shape) + 1 == len(Y.shape)

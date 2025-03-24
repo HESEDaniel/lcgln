@@ -1,4 +1,4 @@
-from PThenO import PThenO
+from problems.PThenO import PThenO
 # import quandl
 import datetime as dt
 import pandas as pd
@@ -10,15 +10,12 @@ import numpy as np
 import cvxpy as cp
 import itertools
 
-
-
 import operator
 from functools import reduce
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from constants import *
 from qpth.qp import QPFunction
 
 class SolveNewsvendor(nn.Module):
@@ -39,7 +36,7 @@ class SolveNewsvendor(nn.Module):
         self.one = torch.Tensor([1])
         self.eps_eye = eps * torch.eye(1 + 2*k).unsqueeze(0)
 
-        if USE_GPU:
+        if torch.cuda.is_available():
             self.Q = self.Q.cuda()
             self.p = self.p.cuda()
             self.G = self.G.cuda()
@@ -53,13 +50,14 @@ class SolveNewsvendor(nn.Module):
         Q_scale = torch.cat([torch.diag(torch.cat(
             [self.one, y[i], y[i]])).unsqueeze(0) for i in range(nBatch)], 0)
         Q = self.Q.unsqueeze(0).expand_as(Q_scale).mul(Q_scale)
-        p_scale = torch.cat([torch.ones(nBatch, 1, device=DEVICE), y, y], 1)
+        # p_scale = torch.cat([torch.ones(nBatch, 1, device=DEVICE), y, y], 1)
+        p_scale = torch.cat([torch.ones(nBatch, 1, device=y.device), y, y], 1)
         p = self.p.unsqueeze(0).expand_as(p_scale).mul(p_scale)
         G = self.G.unsqueeze(0).expand(nBatch, self.G.size(0), self.G.size(1))
         h = self.h.unsqueeze(0).expand(nBatch, self.h.size(0))
         e = torch.DoubleTensor()
-        if USE_GPU:
-            e = e.cuda()
+        # if USE_GPU:
+        #     e = e.cuda()
 
         out = QPFunction(verbose=False)\
             (Q.double(), p.double(), G.double(), h.double(), e, e).float()
@@ -164,7 +162,7 @@ class Newsvendor(PThenO):
 
         np.random.seed(None)
 
-        return torch.tensor(X).float(), torch.tensor(Y)
+        return torch.tensor(X).float(), torch.tensor(Y).float()
     
     def _create_cvxpy_problem(self, params):
         newsvendor_solve = SolveNewsvendor(params)
@@ -179,7 +177,7 @@ class Newsvendor(PThenO):
                     self.params['h_lin'] * cp.pos(z-d) +
                     0.5 * self.params['h_quad'] * cp.square(cp.pos(z-d)) ))
         fval = cp.Problem(cp.Minimize(f), [z >= 0]).solve()
-        return fval , torch.tensor(z.value)
+        return fval, torch.tensor(z.value).float()
 
     def get_train_data(self):
         return self.Xs_train[self.train_idxs], self.Ys_train[self.train_idxs],  [None for _ in range(len(self.train_idxs))]

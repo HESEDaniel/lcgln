@@ -6,7 +6,7 @@ import random
 from os.path import *
 from torch.utils.data import Dataset, DataLoader
 
-class ICNNDataset(Dataset):
+class LCGLNDataset(Dataset):
     def __init__(self, X, y):
         self.X = X
         self.y = y
@@ -18,8 +18,7 @@ class ICNNDataset(Dataset):
         return self.X[idx], self.y[idx]
         
     
-def ICNN_data_loader(X, y, batch_size):
-    icnn_dataset = ICNNDataset(X, y)
-    icnn_dataloader = DataLoader(icnn_dataset, batch_size=batch_size, shuffle=False)
-    
-    return icnn_dataloader
+def LCGLN_data_loader(X, y, batch_size, shuffle=False):
+    lcgln_dataset = LCGLNDataset(X, y)
+    lcgln_dataloader = DataLoader(lcgln_dataset, batch_size=batch_size, shuffle=shuffle)
+    return lcgln_dataloader

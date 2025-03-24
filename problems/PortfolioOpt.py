@@ -1,4 +1,4 @@
-from PThenO import PThenO
+from problems.PThenO import PThenO
 # import quandl
 import datetime as dt
 import pandas as pd
@@ -31,7 +31,6 @@ class PortfolioOpt(PThenO):
         data_dir="data",  # directory to store data
     ):
         super(PortfolioOpt, self).__init__()
-        # Do some random seed fu
         self.rand_seed = rand_seed
         self._set_seed(self.rand_seed)
 
@@ -57,10 +56,10 @@ class PortfolioOpt(PThenO):
         self.test_idxs = idxs[self.num_train_instances:]
         assert all(x is not None for x in [self.train_idxs, self.val_idxs, self.test_idxs])
 
-        # Create functions for optimisation
-        # TODO: Try larger constant
+        # Create functions for optimization
         self.alpha = alpha
         self.opt = self._create_cvxpy_problem(alpha=self.alpha)
+
         # Undo random seed setting
         self._set_seed()
 
@@ -171,10 +170,16 @@ class PortfolioOpt(PThenO):
         L_sqrt_para = cp.Parameter((self.num_stocks, self.num_stocks))
         p_para = cp.Parameter(self.num_stocks)
         constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-        objective = cp.Minimize(- p_para.T @ x_var + alpha * cp.sum_squares(L_sqrt_para @ x_var))
+        # For Rebuttal
+        # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1, cp.sum_squares(L_sqrt_para @ x_var) <= 0.1]
+        objective = cp.Maximize(p_para.T @ x_var - alpha * cp.sum_squares(L_sqrt_para @ x_var))
+        # objective = cp.Minimize(- p_para.T @ x_var + alpha * cp.sum_squares(L_sqrt_para @ x_var))
+        # # For Rebuttal
+        # objective = cp.Minimize(- p_para.T @ x_var)
         problem = cp.Problem(objective, constraints)
 
-        return CvxpyLayer(problem, parameters=[p_para, L_sqrt_para], variables=[x_var])   
+        return CvxpyLayer(problem, parameters=[p_para, L_sqrt_para], variables=[x_var])
+
 
     def get_train_data(self, **kwargs):
         return self.Xs[self.train_idxs], self.Ys[self.train_idxs], self.covar_mat[self.train_idxs]
@@ -217,7 +222,11 @@ class PortfolioOpt(PThenO):
         covar_mat = aux_data
         covar_mat_Z_t = (torch.linalg.cholesky(covar_mat) * Z.unsqueeze(dim=-2)).sum(dim=-1)
         quad_term = covar_mat_Z_t.square().sum(dim=-1)
-        obj = - (Y * Z).sum(dim=-1) + self.alpha * quad_term
+        obj = (Y * Z).sum(dim=-1) - self.alpha * quad_term
+        # obj = - (Y * Z).sum(dim=-1) + self.alpha * quad_term
+        # For Rebuttal
+        # obj = - (Y * Z).sum(dim=-1)
+        
         return obj
     
     def get_output_activation(self):

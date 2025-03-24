@@ -1,9 +1,5 @@
-import pdb
 import torch
 import numpy as np
-import scipy as sp
-import scipy.sparse
-import scipy.linalg
 
 
 class SubmodularOptimizer(torch.nn.Module):
@@ -92,7 +88,7 @@ class OptimiseSubmodular(torch.autograd.Function):
 
         return Z
 
-
+    # TODO: Make this operate on torch tensors?
     @staticmethod
     def _project(Z, k, c=1.):
         '''
