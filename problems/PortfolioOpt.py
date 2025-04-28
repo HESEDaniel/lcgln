@@ -93,7 +93,6 @@ class PortfolioOpt(PThenO):
                 fm_norm = fm_norm / std
 
             # Compute covariance
-            # TODO: See if things change if you get rid of num_samples
             num_samples = future_mat.shape[-1]
             spi = future_mat.shape[-2]  # stocks per instance
             covar_raw = [(fm_norm * fm_norm[..., i:i+1, :].repeat((*((1,) * (fm_norm.ndim - 2)), spi, 1))).sum(dim=-1) for i in range(spi)]
@@ -170,12 +169,7 @@ class PortfolioOpt(PThenO):
         L_sqrt_para = cp.Parameter((self.num_stocks, self.num_stocks))
         p_para = cp.Parameter(self.num_stocks)
         constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1]
-        # For Rebuttal
-        # constraints = [x_var >= 0, x_var <= 1, cp.sum(x_var) == 1, cp.sum_squares(L_sqrt_para @ x_var) <= 0.1]
         objective = cp.Maximize(p_para.T @ x_var - alpha * cp.sum_squares(L_sqrt_para @ x_var))
-        # objective = cp.Minimize(- p_para.T @ x_var + alpha * cp.sum_squares(L_sqrt_para @ x_var))
-        # # For Rebuttal
-        # objective = cp.Minimize(- p_para.T @ x_var)
         problem = cp.Problem(objective, constraints)
 
         return CvxpyLayer(problem, parameters=[p_para, L_sqrt_para], variables=[x_var])
@@ -218,15 +212,10 @@ class PortfolioOpt(PThenO):
             return self.opt(Y, sqrt_covar)[0]
 
     def get_objective(self, Y, Z, aux_data, **kwargs):
-        # TODO: look at either torch.bmm or torch.matmul
         covar_mat = aux_data
         covar_mat_Z_t = (torch.linalg.cholesky(covar_mat) * Z.unsqueeze(dim=-2)).sum(dim=-1)
         quad_term = covar_mat_Z_t.square().sum(dim=-1)
-        obj = (Y * Z).sum(dim=-1) - self.alpha * quad_term
-        # obj = - (Y * Z).sum(dim=-1) + self.alpha * quad_term
-        # For Rebuttal
-        # obj = - (Y * Z).sum(dim=-1)
-        
+        obj = (Y * Z).sum(dim=-1) - self.alpha * quad_term       
         return obj
     
     def get_output_activation(self):
